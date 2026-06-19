@@ -18,4 +18,5 @@ struct PhotoListView: View {
 
 #Preview {
     PhotoListView()
+        .environment(\.managedObjectContext, PersistenceController.preview.viewContext)
 }
