@@ -9,7 +9,7 @@ import CoreData
 import SwiftUI
 
 struct PhotoRowView: View {
-    let photo: Photo
+    @ObservedObject var photo: Photo
 
     var body: some View {
         HStack(spacing: 12) {

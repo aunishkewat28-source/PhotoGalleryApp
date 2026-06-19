@@ -18,6 +18,7 @@ final class PhotoListViewModel: ObservableObject {
     @Published private(set) var isLoadingNextPage = false
     @Published var errorMessage: String?
     @Published private(set) var hasMorePages = true
+    @Published private(set) var listUpdateToken = UUID()
 
     private let repository: PhotoRepositoryProtocol
     private let pageSize: Int
@@ -67,13 +68,52 @@ final class PhotoListViewModel: ObservableObject {
         errorMessage = nil
     }
 
-    func updatePhotoTitle(id: Int64, title: String) {
-        guard let photo = photos.first(where: { $0.id == id }) else { return }
-        photo.title = title
-        objectWillChange.send()
+    func updatePhotoTitle(id: Int64, title _: String) {
+        guard photos.contains(where: { $0.id == id }) else { return }
+
+        do {
+            try reloadLoadedPages()
+        } catch {
+            applyError(error)
+        }
+    }
+
+    func deletePhoto(id: Int64) {
+        do {
+            try repository.deletePhoto(id: id)
+            removePhotoFromList(id: id)
+        } catch {
+            applyError(error)
+        }
+    }
+
+    func removePhotoFromList(id: Int64) {
+        photos.removeAll { $0.id == id }
+        totalCount = max(0, totalCount - 1)
+        hasMorePages = photos.count < totalCount
+        notifyListDidChange()
     }
 
     // MARK: - Private
+
+    private func reloadLoadedPages() throws {
+        var reloadedPhotos: [Photo] = []
+
+        if currentPage >= 0 {
+            for page in 0...currentPage {
+                reloadedPhotos.append(contentsOf: try repository.fetchPhotos(page: page, pageSize: pageSize))
+            }
+        }
+
+        photos = reloadedPhotos
+        totalCount = try repository.totalPhotoCount()
+        hasMorePages = photos.count < totalCount
+        notifyListDidChange()
+    }
+
+    private func notifyListDidChange() {
+        listUpdateToken = UUID()
+    }
 
     private func loadNextPage() async {
         isLoadingNextPage = true

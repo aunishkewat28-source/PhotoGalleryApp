@@ -11,11 +11,19 @@ struct PhotoDetailView: View {
     @StateObject private var viewModel: PhotoDetailViewModel
     @Environment(\.dismiss) private var dismiss
 
-    private let onTitleSaved: ((Int64, String) -> Void)?
+    @State private var showDeleteConfirmation = false
 
-    init(photoID: Int64, onTitleSaved: ((Int64, String) -> Void)? = nil) {
+    private let onTitleSaved: ((Int64, String) -> Void)?
+    private let onPhotoDeleted: ((Int64) -> Void)?
+
+    init(
+        photoID: Int64,
+        onTitleSaved: ((Int64, String) -> Void)? = nil,
+        onPhotoDeleted: ((Int64) -> Void)? = nil
+    ) {
         _viewModel = StateObject(wrappedValue: PhotoDetailViewModel(photoID: photoID))
         self.onTitleSaved = onTitleSaved
+        self.onPhotoDeleted = onPhotoDeleted
     }
 
     var body: some View {
@@ -34,6 +42,15 @@ struct PhotoDetailView: View {
                     TextField("Enter photo title", text: $viewModel.title)
                         .textFieldStyle(.roundedBorder)
                 }
+
+                Button(role: .destructive) {
+                    showDeleteConfirmation = true
+                } label: {
+                    Label("Delete Photo", systemImage: "trash")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.isDeleting)
             }
             .padding()
         }
@@ -46,6 +63,14 @@ struct PhotoDetailView: View {
                 }
                 .disabled(!viewModel.canSave)
             }
+        }
+        .alert("Delete Photo", isPresented: $showDeleteConfirmation) {
+            Button("Delete", role: .destructive) {
+                deleteAndDismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete this photo? This action cannot be undone.")
         }
         .alert(
             "Error",
@@ -67,6 +92,12 @@ struct PhotoDetailView: View {
     private func saveAndDismiss() {
         guard viewModel.saveTitle() else { return }
         onTitleSaved?(viewModel.photoID, viewModel.title)
+        dismiss()
+    }
+
+    private func deleteAndDismiss() {
+        guard viewModel.deletePhoto() else { return }
+        onPhotoDeleted?(viewModel.photoID)
         dismiss()
     }
 }

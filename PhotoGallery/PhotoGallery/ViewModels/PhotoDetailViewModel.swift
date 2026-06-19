@@ -14,6 +14,7 @@ final class PhotoDetailViewModel: ObservableObject {
     @Published private(set) var imageURL = ""
     @Published var errorMessage: String?
     @Published private(set) var isSaving = false
+    @Published private(set) var isDeleting = false
 
     let photoID: Int64
 
@@ -49,6 +50,21 @@ final class PhotoDetailViewModel: ObservableObject {
         do {
             try repository.updateTitle(id: photoID, title: trimmedTitle)
             title = trimmedTitle
+            return true
+        } catch {
+            errorMessage = Self.message(for: error)
+            return false
+        }
+    }
+
+    func deletePhoto() -> Bool {
+        isDeleting = true
+        errorMessage = nil
+
+        defer { isDeleting = false }
+
+        do {
+            try repository.deletePhoto(id: photoID)
             return true
         } catch {
             errorMessage = Self.message(for: error)

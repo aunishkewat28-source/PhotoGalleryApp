@@ -5,10 +5,14 @@
 //  Created by Aunish Jayprakash Kewat on 19/06/26.
 //
 
+import CoreData
 import SwiftUI
 
 struct PhotoListView: View {
     @StateObject private var viewModel = PhotoListViewModel()
+
+    @State private var photoPendingDeletion: Photo?
+    @State private var showDeleteConfirmation = false
 
     var body: some View {
         NavigationView {
@@ -22,6 +26,32 @@ struct PhotoListView: View {
             .navigationTitle("Photos")
             .task {
                 await viewModel.loadInitialData()
+            }
+            .alert("Delete Photo", isPresented: $showDeleteConfirmation, presenting: photoPendingDeletion) { photo in
+                Button("Delete", role: .destructive) {
+                    viewModel.deletePhoto(id: photo.id)
+                    photoPendingDeletion = nil
+                }
+                Button("Cancel", role: .cancel) {
+                    photoPendingDeletion = nil
+                }
+            } message: { _ in
+                Text("Are you sure you want to delete this photo? This action cannot be undone.")
+            }
+            .alert(
+                "Error",
+                isPresented: Binding(
+                    get: { viewModel.errorMessage != nil },
+                    set: { isPresented in
+                        if !isPresented {
+                            viewModel.clearError()
+                        }
+                    }
+                )
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(viewModel.errorMessage ?? "")
             }
         }
     }
@@ -40,11 +70,25 @@ struct PhotoListView: View {
         List {
             ForEach(viewModel.photos, id: \.objectID) { photo in
                 NavigationLink {
-                    PhotoDetailView(photoID: photo.id) { id, title in
-                        viewModel.updatePhotoTitle(id: id, title: title)
-                    }
+                    PhotoDetailView(
+                        photoID: photo.id,
+                        onTitleSaved: { id, title in
+                            viewModel.updatePhotoTitle(id: id, title: title)
+                        },
+                        onPhotoDeleted: { id in
+                            viewModel.removePhotoFromList(id: id)
+                        }
+                    )
                 } label: {
                     PhotoRowView(photo: photo)
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        photoPendingDeletion = photo
+                        showDeleteConfirmation = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
                 }
                 .onAppear {
                     viewModel.loadNextPageIfNeeded(currentItem: photo)
@@ -56,6 +100,7 @@ struct PhotoListView: View {
             }
         }
         .listStyle(.plain)
+        .id(viewModel.listUpdateToken)
     }
 
     private var paginationFooter: some View {
