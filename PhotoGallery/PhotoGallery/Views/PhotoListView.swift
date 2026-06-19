@@ -40,9 +40,27 @@ struct PhotoListView: View {
         List {
             ForEach(viewModel.photos, id: \.objectID) { photo in
                 PhotoRowView(photo: photo)
+                    .onAppear {
+                        viewModel.loadNextPageIfNeeded(currentItem: photo)
+                    }
+            }
+
+            if viewModel.isLoadingNextPage {
+                paginationFooter
             }
         }
         .listStyle(.plain)
+    }
+
+    private var paginationFooter: some View {
+        HStack {
+            Spacer()
+            ProgressView()
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .listRowSeparator(.hidden)
     }
 }
 
