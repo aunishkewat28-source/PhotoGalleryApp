@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct PhotoGalleryApp: App {
+    let persistenceController = PersistenceController.shared
+
     var body: some Scene {
         WindowGroup {
             PhotoListView()
+                .environment(\.managedObjectContext, persistenceController.viewContext)
         }
     }
 }
