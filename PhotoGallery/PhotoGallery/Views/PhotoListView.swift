@@ -39,10 +39,16 @@ struct PhotoListView: View {
     private var photoList: some View {
         List {
             ForEach(viewModel.photos, id: \.objectID) { photo in
-                PhotoRowView(photo: photo)
-                    .onAppear {
-                        viewModel.loadNextPageIfNeeded(currentItem: photo)
+                NavigationLink {
+                    PhotoDetailView(photoID: photo.id) { id, title in
+                        viewModel.updatePhotoTitle(id: id, title: title)
                     }
+                } label: {
+                    PhotoRowView(photo: photo)
+                }
+                .onAppear {
+                    viewModel.loadNextPageIfNeeded(currentItem: photo)
+                }
             }
 
             if viewModel.isLoadingNextPage {

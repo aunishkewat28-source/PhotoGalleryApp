@@ -67,6 +67,12 @@ final class PhotoListViewModel: ObservableObject {
         errorMessage = nil
     }
 
+    func updatePhotoTitle(id: Int64, title: String) {
+        guard let photo = photos.first(where: { $0.id == id }) else { return }
+        photo.title = title
+        objectWillChange.send()
+    }
+
     // MARK: - Private
 
     private func loadNextPage() async {
