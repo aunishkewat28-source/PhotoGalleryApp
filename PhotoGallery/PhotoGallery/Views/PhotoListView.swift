@@ -19,6 +19,8 @@ struct PhotoListView: View {
             Group {
                 if viewModel.isLoading && viewModel.photos.isEmpty {
                     loadingView
+                } else if viewModel.showsEmptyState {
+                    emptyStateView
                 } else {
                     photoList
                 }
@@ -64,6 +66,20 @@ struct PhotoListView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var emptyStateView: some View {
+        EmptyStateView(
+            title: viewModel.emptyStateTitle,
+            message: viewModel.emptyStateMessage,
+            systemImage: viewModel.emptyStateSystemImage,
+            showsRetry: viewModel.showsRetryButton,
+            retryAction: {
+                Task {
+                    await viewModel.retry()
+                }
+            }
+        )
     }
 
     private var photoList: some View {

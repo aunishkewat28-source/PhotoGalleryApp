@@ -8,10 +8,12 @@
 import Combine
 import CoreData
 import Foundation
+import os
 
 @MainActor
 final class PhotoListViewModel: ObservableObject {
     static let defaultPageSize = 30
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "PhotoGallery", category: "PhotoListViewModel")
 
     @Published private(set) var photos: [Photo] = []
     @Published private(set) var isLoading = false
@@ -66,6 +68,30 @@ final class PhotoListViewModel: ObservableObject {
 
     func clearError() {
         errorMessage = nil
+    }
+
+    func retry() async {
+        await loadInitialData()
+    }
+
+    var showsEmptyState: Bool {
+        !isLoading && photos.isEmpty
+    }
+
+    var emptyStateTitle: String {
+        errorMessage == nil ? "No Photos Available" : "Unable to Load Photos"
+    }
+
+    var emptyStateMessage: String {
+        errorMessage ?? "There are no photos to display yet."
+    }
+
+    var emptyStateSystemImage: String {
+        errorMessage == nil ? "photo.on.rectangle.angled" : "wifi.exclamationmark"
+    }
+
+    var showsRetryButton: Bool {
+        errorMessage != nil
     }
 
     func updatePhotoTitle(id: Int64, title _: String) {
@@ -144,6 +170,7 @@ final class PhotoListViewModel: ObservableObject {
     }
 
     private func applyError(_ error: Error) {
+        Self.logger.error("Photo list error: \(error.localizedDescription, privacy: .public)")
         errorMessage = Self.message(for: error)
 
         if photos.isEmpty {

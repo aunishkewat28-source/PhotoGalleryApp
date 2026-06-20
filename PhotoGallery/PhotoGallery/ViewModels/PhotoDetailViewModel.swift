@@ -7,9 +7,12 @@
 
 import Combine
 import Foundation
+import os
 
 @MainActor
 final class PhotoDetailViewModel: ObservableObject {
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "PhotoGallery", category: "PhotoDetailViewModel")
+
     @Published var title = ""
     @Published private(set) var imageURL = ""
     @Published var errorMessage: String?
@@ -52,7 +55,7 @@ final class PhotoDetailViewModel: ObservableObject {
             title = trimmedTitle
             return true
         } catch {
-            errorMessage = Self.message(for: error)
+            applyError(error)
             return false
         }
     }
@@ -67,7 +70,7 @@ final class PhotoDetailViewModel: ObservableObject {
             try repository.deletePhoto(id: photoID)
             return true
         } catch {
-            errorMessage = Self.message(for: error)
+            applyError(error)
             return false
         }
     }
@@ -76,14 +79,20 @@ final class PhotoDetailViewModel: ObservableObject {
         do {
             guard let photo = try repository.fetchPhoto(id: photoID) else {
                 errorMessage = RepositoryError.photoNotFound.errorDescription
+                Self.logger.error("Photo not found for id \(self.photoID)")
                 return
             }
 
             title = photo.title ?? ""
             imageURL = photo.url ?? ""
         } catch {
-            errorMessage = Self.message(for: error)
+            applyError(error)
         }
+    }
+
+    private func applyError(_ error: Error) {
+        Self.logger.error("Photo detail error: \(error.localizedDescription, privacy: .public)")
+        errorMessage = Self.message(for: error)
     }
 
     private static func message(for error: Error) -> String {
