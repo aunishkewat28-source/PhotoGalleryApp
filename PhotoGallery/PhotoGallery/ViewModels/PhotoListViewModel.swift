@@ -8,16 +8,19 @@
 import Combine
 import CoreData
 import Foundation
+import os
 
 @MainActor
 final class PhotoListViewModel: ObservableObject {
     static let defaultPageSize = 30
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "PhotoGallery", category: "PhotoListViewModel")
 
     @Published private(set) var photos: [Photo] = []
     @Published private(set) var isLoading = false
     @Published private(set) var isLoadingNextPage = false
     @Published var errorMessage: String?
     @Published private(set) var hasMorePages = true
+    @Published private(set) var listUpdateToken = UUID()
 
     private let repository: PhotoRepositoryProtocol
     private let pageSize: Int
@@ -67,7 +70,76 @@ final class PhotoListViewModel: ObservableObject {
         errorMessage = nil
     }
 
+    func retry() async {
+        await loadInitialData()
+    }
+
+    var showsEmptyState: Bool {
+        !isLoading && photos.isEmpty
+    }
+
+    var emptyStateTitle: String {
+        errorMessage == nil ? "No Photos Available" : "Unable to Load Photos"
+    }
+
+    var emptyStateMessage: String {
+        errorMessage ?? "There are no photos to display yet."
+    }
+
+    var emptyStateSystemImage: String {
+        errorMessage == nil ? "photo.on.rectangle.angled" : "wifi.exclamationmark"
+    }
+
+    var showsRetryButton: Bool {
+        errorMessage != nil
+    }
+
+    func updatePhotoTitle(id: Int64, title _: String) {
+        guard photos.contains(where: { $0.id == id }) else { return }
+
+        do {
+            try reloadLoadedPages()
+        } catch {
+            applyError(error)
+        }
+    }
+
+    func deletePhoto(id: Int64) {
+        do {
+            try repository.deletePhoto(id: id)
+            removePhotoFromList(id: id)
+        } catch {
+            applyError(error)
+        }
+    }
+
+    func removePhotoFromList(id: Int64) {
+        photos.removeAll { $0.id == id }
+        totalCount = max(0, totalCount - 1)
+        hasMorePages = photos.count < totalCount
+        notifyListDidChange()
+    }
+
     // MARK: - Private
+
+    private func reloadLoadedPages() throws {
+        var reloadedPhotos: [Photo] = []
+
+        if currentPage >= 0 {
+            for page in 0...currentPage {
+                reloadedPhotos.append(contentsOf: try repository.fetchPhotos(page: page, pageSize: pageSize))
+            }
+        }
+
+        photos = reloadedPhotos
+        totalCount = try repository.totalPhotoCount()
+        hasMorePages = photos.count < totalCount
+        notifyListDidChange()
+    }
+
+    private func notifyListDidChange() {
+        listUpdateToken = UUID()
+    }
 
     private func loadNextPage() async {
         isLoadingNextPage = true
@@ -98,6 +170,7 @@ final class PhotoListViewModel: ObservableObject {
     }
 
     private func applyError(_ error: Error) {
+        Self.logger.error("Photo list error: \(error.localizedDescription, privacy: .public)")
         errorMessage = Self.message(for: error)
 
         if photos.isEmpty {
