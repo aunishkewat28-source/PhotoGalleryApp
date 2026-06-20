@@ -18,7 +18,7 @@ An iOS photo gallery app built with **SwiftUI**, **Core Data**, and **URLSession
 
 1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/aunishkewat28-source/PhotoGalleryApp.git
    cd PhotoGalleryApp
    ```
 
